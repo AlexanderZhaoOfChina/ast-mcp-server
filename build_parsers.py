@@ -16,6 +16,7 @@ os.makedirs(PARSERS_PATH, exist_ok=True)
 # Define the language modules to use
 LANGUAGE_MODULES = {
     "python": "tree_sitter_python",
+    "java": "tree_sitter_java",
     "javascript": "tree_sitter_javascript",
 }
 

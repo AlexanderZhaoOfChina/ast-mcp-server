@@ -15,6 +15,7 @@ from tree_sitter import Parser, Node
 LANGUAGE_MODULES = {
     "python": "tree_sitter_python",
     "javascript": "tree_sitter_javascript",
+    "java": "tree_sitter_java",
 }
 
 # Path to the parsers availability marker
