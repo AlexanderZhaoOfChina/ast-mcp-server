@@ -5,6 +5,8 @@ This module provides improved implementations of the AST/ASG analysis tools
 with better scope handling, more complete edge detection, and performance
 optimizations for handling large codebases.
 """
+# 增强版AST/ASG分析工具，适用于MCP服务器。
+# 本模块提供了更好的作用域处理、更完整的边检测和大规模代码库的性能优化。
 
 from typing import Dict, List, Optional, Union, Any, Set, Tuple
 import os
@@ -32,6 +34,7 @@ PYTHON_SCOPE_NODES = {
 
 class ScopeManager:
     """Manages scope hierarchy for semantic analysis."""
+    # 管理语义分析中的作用域层级。
     
     def __init__(self):
         self.scopes = {}  # Maps scope_id to parent_scope_id
@@ -53,6 +56,8 @@ class ScopeManager:
         Returns:
             The scope_id for chaining
         """
+        # 进入一个新作用域。
+        # scope_id：新作用域的ID；parent_scope_id：父作用域ID（全局作用域时为None）
         if parent_scope_id is None:
             parent_scope_id = self.global_scope
             
@@ -61,22 +66,27 @@ class ScopeManager:
     
     def get_parent_scope(self, scope_id: str) -> Optional[str]:
         """Get the parent scope of the given scope."""
+        # 获取给定作用域的父作用域。
         return self.scopes.get(scope_id)
     
     def add_variable(self, var_name: str, var_id: str, scope_id: str) -> None:
         """Add a variable to the current scope."""
+        # 向当前作用域添加变量。
         self.variables[scope_id][var_name] = var_id
     
     def add_function(self, func_name: str, func_id: str) -> None:
         """Add a function definition."""
+        # 添加函数定义。
         self.functions[func_name] = func_id
     
     def add_class(self, class_name: str, class_id: str) -> None:
         """Add a class definition."""
+        # 添加类定义。
         self.classes[class_name] = class_id
     
     def add_import(self, import_name: str, import_id: str) -> None:
         """Add an import definition."""
+        # 添加import定义。
         self.imports[import_name] = import_id
     
     def find_variable(self, var_name: str, scope_id: str) -> Optional[str]:
@@ -91,6 +101,7 @@ class ScopeManager:
         Returns:
             The variable ID if found, None otherwise
         """
+        # 在作用域层级中查找变量，先查当前作用域，再查父作用域。
         current_scope = scope_id
         
         while current_scope is not None:
@@ -104,28 +115,34 @@ class ScopeManager:
     
     def find_function(self, func_name: str) -> Optional[str]:
         """Find a function by name."""
+        # 通过名称查找函数。
         return self.functions.get(func_name)
     
     def find_class(self, class_name: str) -> Optional[str]:
         """Find a class by name."""
+        # 通过名称查找类。
         return self.classes.get(class_name)
     
     def find_import(self, import_name: str) -> Optional[str]:
         """Find an import by name."""
+        # 通过名称查找import。
         return self.imports.get(import_name)
     
     def enter_control_flow(self, node_id: str) -> None:
         """Push a control flow node onto the stack."""
+        # 将控制流节点压入栈中。
         self.control_flow.append(node_id)
     
     def exit_control_flow(self) -> Optional[str]:
         """Pop a control flow node from the stack."""
+        # 从栈中弹出控制流节点。
         if self.control_flow:
             return self.control_flow.pop()
         return None
     
     def get_current_control_flow(self) -> Optional[str]:
         """Get the current control flow node."""
+        # 获取当前控制流节点。
         if self.control_flow:
             return self.control_flow[-1]
         return None
@@ -158,31 +175,40 @@ def parse_code_to_ast_incremental(
         Dictionary representation of the AST, with additional metadata
         for incremental parsing
     """
+    # 使用Tree-sitter增量解析代码为AST。
+    # 如果提供了previous_tree，仅解析变更部分，适合大文件的小改动。
     # Initialize parsers if not done already
     if not languages and not init_parsers():
         return {"error": "Tree-sitter language parsers not available. Run build_parsers.py first."}
+    # 初始化解析器，如未初始化则先初始化。
     
     # Detect language if not provided
     if not language:
         language = detect_language(code, filename)
+    # 未指定语言时自动检测。
     
     # Normalize language identifier
     language = LANGUAGE_MAP.get(language.lower(), language.lower())
+    # 规范化语言标识符。
     
     # Check if language is supported
     if language not in languages:
         return {"error": f"Unsupported language: {language}"}
+    # 检查语言是否受支持。
     
     try:
         # Set the parser language
         parser.set_language(languages[language])
+        # 设置解析器语言。
         
         # Parse the code, potentially incrementally
         source_bytes = bytes(code, 'utf-8')
+        # 解析代码，可能采用增量方式。
         
         if previous_tree and old_code:
             old_source_bytes = bytes(old_code, 'utf-8')
             tree = parser.parse(source_bytes, previous_tree)
+            # 增量解析，基于旧树。
             
             # Calculate which nodes changed
             changed_ranges = []
@@ -193,27 +219,33 @@ def parse_code_to_ast_incremental(
                     "start_point": {"row": edit.start_point[0], "column": edit.start_point[1]},
                     "end_point": {"row": edit.end_point[0], "column": edit.end_point[1]}
                 })
+            # 计算变更范围。
         else:
             tree = parser.parse(source_bytes)
             changed_ranges = None  # No previous tree to compare with
+            # 无旧树时全量解析。
         
         # Convert to dictionary
         root_node = tree.root_node
         ast = node_to_dict(root_node, source_bytes, include_children)
+        # 转换为字典结构。
         
         result = {
             "language": language,
             "ast": ast,
             "tree_object": tree  # Keep the tree object for later incremental parsing
         }
+        # 返回包含语言、AST和树对象的结果。
         
         if changed_ranges:
             result["changed_ranges"] = changed_ranges
+        # 如有变更范围则一并返回。
         
         return result
         
     except Exception as e:
         return {"error": f"Error parsing code: {e}"}
+    # 捕获异常并返回错误信息。
 
 
 def create_enhanced_asg_from_ast(ast_data: Dict) -> Dict:
@@ -229,6 +261,7 @@ def create_enhanced_asg_from_ast(ast_data: Dict) -> Dict:
     Returns:
         Dictionary representation of the enhanced ASG
     """
+    # 从AST生成增强版ASG，包含更完整的边检测和作用域处理。
     if "error" in ast_data:
         return ast_data
     
@@ -242,6 +275,7 @@ def create_enhanced_asg_from_ast(ast_data: Dict) -> Dict:
     
     def extract_nodes(node, parent_id=None):
         node_id = f"{node['type']}_{node['start_byte']}_{node['end_byte']}"
+        # 生成节点唯一ID。
         
         # Create a node object with metadata
         node_index = len(nodes)
@@ -256,6 +290,7 @@ def create_enhanced_asg_from_ast(ast_data: Dict) -> Dict:
             "end_line": node["end_point"]["row"],
             "end_col": node["end_point"]["column"]
         }
+        # 构建节点对象，包含元数据。
         nodes.append(node_obj)
         node_ids[node_id] = node_index
         
@@ -266,11 +301,13 @@ def create_enhanced_asg_from_ast(ast_data: Dict) -> Dict:
                 "target": node_id,
                 "type": "contains"
             })
+        # 如有父节点则添加包含关系边。
         
         # Process children
         if "children" in node:
             for child in node["children"]:
                 extract_nodes(child, node_id)
+        # 递归处理子节点。
                 
         return node_id
     
@@ -282,6 +319,7 @@ def create_enhanced_asg_from_ast(ast_data: Dict) -> Dict:
         add_enhanced_python_semantic_edges(ast, edges)
     elif language in ["javascript", "typescript"]:
         add_enhanced_js_ts_semantic_edges(ast, edges)
+    # 按语言类型添加语义边。
     
     # Add additional metadata to the ASG
     return {
@@ -291,6 +329,7 @@ def create_enhanced_asg_from_ast(ast_data: Dict) -> Dict:
         "root": root_id,
         "node_lookup": node_ids,  # Helps with quick node lookup by ID
     }
+    # 返回ASG结构，包括节点、边、根节点ID和节点查找表。
 
 
 def add_enhanced_python_semantic_edges(ast: Dict, edges: List[Dict]):
@@ -306,6 +345,7 @@ def add_enhanced_python_semantic_edges(ast: Dict, edges: List[Dict]):
         ast: The Python AST
         edges: List to store the detected edges
     """
+    # 为ASG添加增强版Python语义边，包括作用域、控制流和数据流。
     scope_manager = ScopeManager()
     current_scope = scope_manager.global_scope
     
@@ -314,11 +354,13 @@ def add_enhanced_python_semantic_edges(ast: Dict, edges: List[Dict]):
         nonlocal current_scope
         old_scope = current_scope
         node_id = f"{node['type']}_{node['start_byte']}_{node['end_byte']}"
+        # 第一遍遍历，查找所有定义（函数、类、变量）。
         
         # Check for scope-creating nodes
         if node["type"] in PYTHON_SCOPE_NODES:
             # Create new scope for this node
             current_scope = scope_manager.enter_scope(node_id, current_scope)
+        # 检查是否为创建作用域的节点。
         
         # Check for definitions
         if node["type"] == "function_definition":
@@ -328,6 +370,7 @@ def add_enhanced_python_semantic_edges(ast: Dict, edges: List[Dict]):
                     func_name = child["text"]
                     func_id = node_id
                     scope_manager.add_function(func_name, func_id)
+                    # 添加函数定义。
                     
                     # Add parameters to function scope
                     for param_child in node.get("children", []):
@@ -337,6 +380,7 @@ def add_enhanced_python_semantic_edges(ast: Dict, edges: List[Dict]):
                                     param_name = param["text"]
                                     param_id = f"{param['type']}_{param['start_byte']}_{param['end_byte']}"
                                     scope_manager.add_variable(param_name, param_id, current_scope)
+                    # 将参数添加到函数作用域。
                     
                     break
         
@@ -347,6 +391,8 @@ def add_enhanced_python_semantic_edges(ast: Dict, edges: List[Dict]):
                     class_name = child["text"]
                     class_id = node_id
                     scope_manager.add_class(class_name, class_id)
+                    # 添加类定义。
+                    
                     break
         
         elif node["type"] == "assignment":
@@ -354,6 +400,7 @@ def add_enhanced_python_semantic_edges(ast: Dict, edges: List[Dict]):
             # The left side is the target (variable being defined)
             targets = []
             values = []
+            # 处理变量赋值，左侧为目标变量。
             
             # Split children into targets and values
             for i, child in enumerate(node.get("children", [])):
@@ -363,6 +410,7 @@ def add_enhanced_python_semantic_edges(ast: Dict, edges: List[Dict]):
                     # Everything after '=' is a value
                     values = node["children"][i+1:]
                     break
+            # 拆分目标和赋值部分。
             
             # Process targets (variables being assigned)
             for target in targets:
@@ -370,6 +418,7 @@ def add_enhanced_python_semantic_edges(ast: Dict, edges: List[Dict]):
                     var_name = target["text"]
                     var_id = f"{target['type']}_{target['start_byte']}_{target['end_byte']}"
                     scope_manager.add_variable(var_name, var_id, current_scope)
+                # 处理变量名。
                 
                 # Handle tuple unpacking
                 elif target["type"] == "tuple" or target["type"] == "list":
@@ -378,6 +427,7 @@ def add_enhanced_python_semantic_edges(ast: Dict, edges: List[Dict]):
                             var_name = element["text"]
                             var_id = f"{element['type']}_{element['start_byte']}_{element['end_byte']}"
                             scope_manager.add_variable(var_name, var_id, current_scope)
+                    # 处理元组或列表解包。
         
         elif node["type"] == "import_statement" or node["type"] == "import_from_statement":
             # Track imported modules and functions
@@ -386,10 +436,12 @@ def add_enhanced_python_semantic_edges(ast: Dict, edges: List[Dict]):
                     import_name = child["text"]
                     import_id = f"{child['type']}_{child['start_byte']}_{child['end_byte']}"
                     scope_manager.add_import(import_name, import_id)
+            # 记录import。
         
         # Check for control flow nodes
         if node["type"] in PYTHON_CONTROL_FLOW_NODES:
             scope_manager.enter_control_flow(node_id)
+            # 进入控制流节点。
             
             # Add control flow edges between blocks
             body_node = None
@@ -405,28 +457,34 @@ def add_enhanced_python_semantic_edges(ast: Dict, edges: List[Dict]):
                     "target": f"{body_node['type']}_{body_node['start_byte']}_{body_node['end_byte']}",
                     "type": "control_flow"
                 })
+                # 添加控制流边。
         
         # Process all children recursively
         for child in node.get("children", []):
             find_enhanced_definitions(child, current_scope)
+        # 递归处理所有子节点。
         
         # Exit any control flow blocks we entered
         if node["type"] in PYTHON_CONTROL_FLOW_NODES:
             scope_manager.exit_control_flow()
+            # 退出控制流节点。
         
         # Restore previous scope if we created a new one
         if node["type"] in PYTHON_SCOPE_NODES:
             current_scope = old_scope
+            # 恢复上一个作用域。
     
     # Second pass: find all references and connect the edges
     def find_enhanced_references(node, scope=None):
         nonlocal current_scope
         old_scope = current_scope
         node_id = f"{node['type']}_{node['start_byte']}_{node['end_byte']}"
+        # 第二遍遍历，查找所有引用并连接边。
         
         # Update scope if needed
         if node["type"] in PYTHON_SCOPE_NODES:
             current_scope = node_id
+        # 如有需要，更新当前作用域。
         
         # Look for references to functions, variables, etc.
         if node["type"] == "call":
@@ -440,6 +498,7 @@ def add_enhanced_python_semantic_edges(ast: Dict, edges: List[Dict]):
             if func_node:
                 func_name = func_node["text"]
                 caller_id = f"{func_node['type']}_{func_node['start_byte']}_{func_node['end_byte']}"
+                # 查找函数名。
                 
                 # Look for the function definition
                 func_id = scope_manager.find_function(func_name)
@@ -449,6 +508,7 @@ def add_enhanced_python_semantic_edges(ast: Dict, edges: List[Dict]):
                         "target": func_id,
                         "type": "calls"
                     })
+                    # 添加函数调用边。
                 
                 # Check if it's an imported function
                 import_id = scope_manager.find_import(func_name)
@@ -458,17 +518,20 @@ def add_enhanced_python_semantic_edges(ast: Dict, edges: List[Dict]):
                         "target": import_id,
                         "type": "calls_import"
                     })
+                    # 添加import调用边。
         
         elif node["type"] == "identifier":
             # Check if this is a variable reference (not a definition)
             parent_type = None
             if node.get("parent"):
                 parent_type = node["parent"]["type"]
+            # 检查是否为变量引用。
             
             # Skip if this is a definition (handled in the first pass)
             if parent_type not in ["function_definition", "class_definition", "parameter"]:
                 var_name = node["text"]
                 var_id = node_id
+                # 跳过定义部分。
                 
                 # Look for the variable definition
                 ref_id = scope_manager.find_variable(var_name, current_scope)
@@ -478,18 +541,22 @@ def add_enhanced_python_semantic_edges(ast: Dict, edges: List[Dict]):
                         "target": ref_id,
                         "type": "references"
                     })
+                    # 添加变量引用边。
         
         # Process all children recursively
         for child in node.get("children", []):
             find_enhanced_references(child, current_scope)
+        # 递归处理所有子节点。
         
         # Restore previous scope if we created a new one
         if node["type"] in PYTHON_SCOPE_NODES:
             current_scope = old_scope
+            # 恢复上一个作用域。
     
     # Run both passes
     find_enhanced_definitions(ast)
     find_enhanced_references(ast)
+    # 先查定义再查引用。
 
 
 def add_enhanced_js_ts_semantic_edges(ast: Dict, edges: List[Dict]):
@@ -502,9 +569,7 @@ def add_enhanced_js_ts_semantic_edges(ast: Dict, edges: List[Dict]):
         ast: The JS/TS AST
         edges: List to store the detected edges
     """
-    # This would contain JS/TS-specific scope and edge analysis
-    # Similar implementation as the Python version but adapted for JS/TS
-    # Since this is a more advanced implementation, we're keeping it as a placeholder
+    # 为ASG添加增强版JS/TS语义边，方法类似Python但适配JS/TS语法。
     pass
 
 
@@ -529,11 +594,13 @@ def generate_ast_diff(
     Returns:
         Dictionary with the changed nodes and metadata
     """
+    # 生成两个AST的差异，仅显示变更节点，适合增量更新。
     # If we don't have tree objects, parse both files (can't use incremental parsing)
     if "tree_object" not in ast_old or "tree_object" not in ast_new:
         return {
             "error": "Both ASTs must have tree_object property for diffing"
         }
+    # 若无tree对象则无法增量diff。
     
     old_tree = ast_old["tree_object"]
     new_tree = ast_new["tree_object"]
@@ -541,6 +608,7 @@ def generate_ast_diff(
     # Get changed ranges from Tree-sitter
     old_source_bytes = bytes(source_old, 'utf-8')
     new_source_bytes = bytes(source_new, 'utf-8')
+    # 获取变更范围。
     
     # Get the changed ranges
     changed_ranges = []
@@ -551,6 +619,7 @@ def generate_ast_diff(
             "start_point": {"row": edit.start_point[0], "column": edit.start_point[1]},
             "end_point": {"row": edit.end_point[0], "column": edit.end_point[1]}
         })
+    # 记录变更区间。
     
     # Find nodes in the new AST that are in the changed ranges
     changed_nodes = []
@@ -559,22 +628,25 @@ def generate_ast_diff(
         # Check if this node is in any of the changed ranges
         node_start = node["start_byte"]
         node_end = node["end_byte"]
+        # 检查节点是否在变更区间内。
         
         for r in ranges:
             # If there's any overlap between the node and the range
             if not (node_end <= r["start_byte"] or node_start >= r["end_byte"]):
                 changed_nodes.append(node)
                 return True
+        # 若有重叠则视为变更节点。
         
         # If node is not changed, check its children
         for child in node.get("children", []):
             if find_nodes_in_range(child, ranges):
                 return True
-        
+        # 若节点未变更则递归检查子节点。
         return False
     
     # Start from the root
     find_nodes_in_range(ast_new["ast"], changed_ranges)
+    # 从根节点开始查找变更节点。
     
     return {
         "language": ast_new["language"],
@@ -583,6 +655,7 @@ def generate_ast_diff(
         "old_ast": ast_old["ast"],
         "new_ast": ast_new["ast"]
     }
+    # 返回变更节点及相关元数据。
 
 
 def get_node_by_position(
@@ -604,6 +677,7 @@ def get_node_by_position(
     Returns:
         The node at the given position, or None if not found
     """
+    # 根据行列号查找最具体的AST节点，常用于定位光标处的代码元素。
     def find_node(node):
         # Check if the position is within this node's range
         if (node["start_point"]["row"] <= line <= node["end_point"]["row"]):
@@ -612,18 +686,14 @@ def get_node_by_position(
                 return None
             if node["end_point"]["row"] == line and column > node["end_point"]["column"]:
                 return None
-            
-            # Position is within this node, check children for more specific match
+            # 位置在节点范围内，递归查找更具体的子节点。
             best_match = node
-            
             for child in node.get("children", []):
                 child_match = find_node(child)
                 if child_match is not None:
                     # Child contains the position, its more specific than current node
                     best_match = child_match
-            
             return best_match
-        
         return None
     
     return find_node(ast["ast"])
@@ -631,6 +701,7 @@ def get_node_by_position(
 
 def register_enhanced_tools(mcp_server):
     """Register all enhanced tools with the MCP server."""
+    # 向MCP服务器注册所有增强工具。
     
     @mcp_server.tool()
     def parse_to_ast_incremental(
@@ -656,6 +727,7 @@ def register_enhanced_tools(mcp_server):
             A dictionary containing the AST and language information,
             along with diff information if old_code was provided
         """
+        # 支持增量解析的AST工具，可加速大文件的小幅变更解析。
         # If old_code is provided, try to use it for incremental parsing
         previous_tree = None
         if old_code:
@@ -663,6 +735,7 @@ def register_enhanced_tools(mcp_server):
             old_result = parse_code_to_ast_incremental(old_code, language, filename)
             if "error" not in old_result and "tree_object" in old_result:
                 previous_tree = old_result["tree_object"]
+        # 如有旧代码，先解析旧树以支持增量。
         
         # Parse the new code, potentially using the previous tree
         return parse_code_to_ast_incremental(
@@ -672,6 +745,7 @@ def register_enhanced_tools(mcp_server):
             previous_tree, 
             old_code
         )
+        # 解析新代码，可能用到旧树。
     
     @mcp_server.tool()
     def generate_enhanced_asg(
@@ -694,6 +768,7 @@ def register_enhanced_tools(mcp_server):
         Returns:
             A dictionary containing the enhanced ASG with nodes, edges, and metadata
         """
+        # 生成增强版ASG，包含更完整的作用域、控制流和数据流信息。
         ast_data = parse_code_to_ast_incremental(code, language, filename)
         return create_enhanced_asg_from_ast(ast_data)
     
@@ -719,6 +794,7 @@ def register_enhanced_tools(mcp_server):
         Returns:
             A dictionary with the changed nodes and metadata
         """
+        # 比较两份代码，仅返回变更的AST节点，适合增量分析。
         ast_old = parse_code_to_ast_incremental(old_code, language, filename)
         ast_new = parse_code_to_ast_incremental(new_code, language, filename)
         
@@ -753,6 +829,7 @@ def register_enhanced_tools(mcp_server):
         Returns:
             The node at the given position, or an error if not found
         """
+        # 查找代码中特定位置的AST节点，常用于定位光标处的元素。
         ast_data = parse_code_to_ast_incremental(code, language, filename)
         
         if "error" in ast_data:
@@ -769,3 +846,4 @@ def register_enhanced_tools(mcp_server):
             return {
                 "error": f"No node found at position {line}:{column}"
             }
+        # 返回节点或错误信息。

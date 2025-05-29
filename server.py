@@ -7,6 +7,9 @@ the Model Context Protocol (MCP), allowing AI assistants to better understand
 and reason about code. It includes enhanced features for improved scope handling,
 incremental parsing, and performance optimizations for large codebases.
 """
+# AST/ASG代码分析MCP服务器。
+# 该服务器通过MCP协议提供代码结构和语义分析能力，支持AI助手理解和推理代码。
+# 包含作用域增强、增量解析、大型代码库性能优化等特性。
 
 import os
 import sys
@@ -33,22 +36,28 @@ mcp = FastMCP(
     version="0.2.0",
     description="Code structure and semantic analysis using AST/ASG with enhanced features"
 )
+# 初始化MCP服务器，指定名称、版本和描述。
 
 # Register tools with the server
 register_tools(mcp)
+# 注册基础工具。
 
 # Register enhanced tools if available
 if ENHANCED_TOOLS_AVAILABLE:
     register_enhanced_tools(mcp)
+# 若有增强工具则注册。
 
 # Register resources with the server
 register_resources(mcp)
+# 注册资源。
 
 # Cache for storing previous ASTs for incremental parsing
 AST_CACHE = {}
+# 用于存储增量解析时的AST缓存。
 
 # Add custom handlers for tool operations
 # These ensure that results are cached for resource access
+# 添加自定义工具操作，确保结果可被资源访问缓存。
 
 @mcp.tool()
 def parse_and_cache(code: str, language: Optional[str] = None, filename: Optional[str] = None) -> Dict:
@@ -71,13 +80,16 @@ def parse_and_cache(code: str, language: Optional[str] = None, filename: Optiona
     
     # Generate a hash for the code
     code_hash = get_code_hash(code)
+    # 生成代码哈希。
     
     # Parse the code to AST
     ast_data = parse_code_to_ast(code, language, filename)
+    # 解析代码为AST。
     
     # Cache the result
     if "error" not in ast_data:
         cache_resource(code, "ast", ast_data)
+        # 缓存AST结果。
         
         # Return the AST with a resource URI
         return {
@@ -108,19 +120,23 @@ def generate_and_cache_asg(code: str, language: Optional[str] = None, filename: 
     
     # Generate a hash for the code
     code_hash = get_code_hash(code)
+    # 生成代码哈希。
     
     # Parse to AST first
     ast_data = parse_code_to_ast(code, language, filename)
+    # 先解析为AST。
     
     if "error" in ast_data:
         return ast_data
     
     # Generate ASG
     asg_data = create_asg_from_ast(ast_data)
+    # 生成ASG。
     
     # Cache both results
     cache_resource(code, "ast", ast_data)
     cache_resource(code, "asg", asg_data)
+    # 缓存AST和ASG。
     
     # Return the ASG with a resource URI
     return {
@@ -149,13 +165,16 @@ def analyze_and_cache(code: str, language: Optional[str] = None, filename: Optio
     
     # Generate a hash for the code
     code_hash = get_code_hash(code)
+    # 生成代码哈希。
     
     # Analyze the code
     analysis_data = analyze_code_structure(code, language, filename)
+    # 分析代码结构。
     
     # Cache the result
     if "error" not in analysis_data:
         cache_resource(code, "analysis", analysis_data)
+        # 缓存分析结果。
         
         # Return the analysis with a resource URI
         return {
@@ -194,17 +213,21 @@ if ENHANCED_TOOLS_AVAILABLE:
         
         # Generate a hash for the code
         code_hash = get_code_hash(code)
+        # 生成代码哈希。
         
         # Use file path as cache key if provided, otherwise use hash
         cache_key = code_id if code_id else code_hash
+        # 使用文件路径作为缓存key，否则用哈希。
         
         # Check if we have a previous version in cache
         old_code = None
         if cache_key in AST_CACHE:
             old_code = AST_CACHE["code"]
+        # 检查是否有旧版本缓存。
         
         # Parse the code to AST, potentially using incremental parsing
         ast_data = parse_code_to_ast_incremental(code, language, filename)
+        # 增量解析代码为AST。
         
         # Cache the current code for future incremental parsing
         AST_CACHE[cache_key] = {
@@ -212,10 +235,12 @@ if ENHANCED_TOOLS_AVAILABLE:
             "ast_data": ast_data,
             "language": ast_data.get("language")
         }
+        # 缓存当前代码和AST。
         
         # Cache the result for resource access
         if "error" not in ast_data:
             cache_resource(code, "ast", ast_data)
+            # 缓存AST。
             
             # Return the AST with a resource URI
             return {
@@ -251,19 +276,23 @@ if ENHANCED_TOOLS_AVAILABLE:
         
         # Generate a hash for the code
         code_hash = get_code_hash(code)
+        # 生成代码哈希。
         
         # Parse to AST first
         ast_data = parse_code_to_ast_incremental(code, language, filename)
+        # 先解析为AST。
         
         if "error" in ast_data:
             return ast_data
         
         # Generate enhanced ASG
         asg_data = create_enhanced_asg_from_ast(ast_data)
+        # 生成增强版ASG。
         
         # Cache both results
         cache_resource(code, "ast", ast_data)
         cache_resource(code, "enhanced_asg", asg_data)
+        # 缓存AST和增强ASG。
         
         # Return the ASG with a resource URI
         return {
@@ -298,9 +327,11 @@ if ENHANCED_TOOLS_AVAILABLE:
         # Generate hashes for both code versions
         old_hash = get_code_hash(old_code)
         new_hash = get_code_hash(new_code)
+        # 生成旧代码和新代码的哈希。
         
         # Generate the diff
         diff_data = diff_ast(old_code, new_code, language, filename)
+        # 生成AST差异。
         
         if "error" in diff_data:
             return diff_data
@@ -308,6 +339,7 @@ if ENHANCED_TOOLS_AVAILABLE:
         # Cache the diff
         diff_hash = get_code_hash(f"{old_hash}_{new_hash}")
         cache_resource(f"{old_hash}_{new_hash}", "diff", diff_data)
+        # 缓存diff结果。
         
         # Return the diff with a resource URI
         return {
